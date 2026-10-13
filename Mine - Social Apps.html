@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="2.jpg">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mine - Social Apps</title>
+<style>
+  :root {
+    --bg:#f4f6f8; --card:#ffffff; --text:#1c2430; --muted:#66717f; --border:#e1e5ea;
+    --accent:#1faa59; --accent-text:#fff; --overlay:rgba(15,20,28,.55);
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#1b2430; --card:#262f3d; --text:#eef2f6; --muted:#9aa6b4; --border:#36414f; }
+  }
+  :root[data-theme="dark"] { --bg:#1b2430; --card:#262f3d; --text:#eef2f6; --muted:#9aa6b4; --border:#36414f; }
+  html { scroll-padding-top:env(safe-area-inset-top,0px); }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+         font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:28px 18px 40px; }
+  header { text-align:center; margin-bottom:22px; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  header p { margin:0; color:var(--muted); font-size:15px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:14px; }
+  .tile { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:18px 8px 14px;
+          text-align:center; cursor:pointer; font:inherit; color:inherit; position:relative; }
+  .tile:hover { transform:translateY(-2px); border-color:var(--accent); }
+  .ic { width:58px; height:58px; border-radius:50%; margin:0 auto 10px; display:flex; align-items:center;
+        justify-content:center; font-size:28px; color:#fff; font-weight:700; }
+  .nm { font-size:14px; font-weight:600; }
+  .del { position:absolute; top:6px; right:8px; background:none; border:0; color:var(--muted);
+         font-size:16px; cursor:pointer; display:none; }
+  .editing .del { display:block; }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;
+         margin:22px 0 0; font-size:14px; color:var(--muted); }
+  .bar label { display:flex; gap:8px; align-items:center; cursor:pointer; }
+  .link { background:none; border:0; color:var(--accent); font:inherit; cursor:pointer; padding:4px; }
+  .modal { position:fixed; inset:0; background:var(--overlay); display:none; align-items:center;
+           justify-content:center; padding:20px; z-index:10; }
+  .modal.show { display:flex; }
+  .box { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:26px 22px;
+         width:min(340px,100%); text-align:center; }
+  .box h2 { margin:10px 0 4px; font-size:20px; }
+  .box p { margin:0 0 18px; color:var(--muted); font-size:14px; word-break:break-all; }
+  .btn { display:block; width:100%; box-sizing:border-box; padding:13px; border-radius:12px; font-size:16px;
+         font-weight:600; border:0; cursor:pointer; }
+  .ok { background:var(--accent); color:var(--accent-text); }
+  .no { background:transparent; color:var(--muted); margin-top:6px; }
+  input[type=text], input[type=url] { width:100%; box-sizing:border-box; padding:11px; margin-bottom:10px;
+         border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💬 Mine</h1>
+    <p>Tap an app, approve, and it opens in your browser</p>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="bar">
+    <label><input type="checkbox" id="ask" checked> Ask before opening</label>
+    <span>
+      <button class="link" id="add">+ Add app</button>
+      <button class="link" id="edit">Edit</button>
+    </span>
+  </div>
+</div>
+
+<div class="modal" id="confirm">
+  <div class="box">
+    <div class="ic" id="cIcon"></div>
+    <h2 id="cName"></h2>
+    <p id="cUrl"></p>
+    <button class="btn ok" id="approve">Approve &amp; Open</button>
+    <button class="btn no" id="cancel">Cancel</button>
+  </div>
+</div>
+
+<div class="modal" id="addBox">
+  <div class="box">
+    <h2>Add an app</h2>
+    <p>Name and website address</p>
+    <input type="text" id="aName" placeholder="Name (e.g. Twitch)">
+    <input type="url" id="aUrl" placeholder="https://twitch.tv">
+    <button class="btn ok" id="aSave">Save</button>
+    <button class="btn no" id="aCancel">Cancel</button>
+  </div>
+</div>
+
+<script>
+  var DEFAULTS = [
+    {n:"WhatsApp",u:"https://web.whatsapp.com",c:"#25D366",i:"💬"},
+    {n:"Facebook",u:"https://www.facebook.com",c:"#1877F2",i:"f"},
+    {n:"Instagram",u:"https://www.instagram.com",c:"#E1306C",i:"📷"},
+    {n:"X",u:"https://x.com",c:"#111111",i:"𝕏"},
+    {n:"TikTok",u:"https://www.tiktok.com",c:"#010101",i:"♪"},
+    {n:"YouTube",u:"https://www.youtube.com",c:"#FF0000",i:"▶"},
+    {n:"LinkedIn",u:"https://www.linkedin.com",c:"#0A66C2",i:"in"},
+    {n:"Telegram",u:"https://web.telegram.org",c:"#229ED9",i:"✈"},
+    {n:"Snapchat",u:"https://www.snapchat.com",c:"#F2C400",i:"👻"},
+    {n:"Reddit",u:"https://www.reddit.com",c:"#FF4500",i:"👽"},
+    {n:"Pinterest",u:"https://www.pinterest.com",c:"#E60023",i:"P"},
+    {n:"Discord",u:"https://discord.com/app",c:"#5865F2",i:"🎮"},
+    {n:"Messenger",u:"https://www.messenger.com",c:"#0099FF",i:"⚡"},
+    {n:"Threads",u:"https://www.threads.net",c:"#222222",i:"@"}
+  ];
+  var apps = DEFAULTS.slice(), editing = false, pending = null;
+
+  function get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+  function load(){
+    try { var s = JSON.parse(get("apps")||"null"); if (Array.isArray(s) && s.length) apps = s; } catch(e){}
+    var a = get("ask"); if (a === "0") document.getElementById("ask").checked = false;
+  }
+  function save(){ set("apps", JSON.stringify(apps)); }
+
+  function el(t,c,txt){ var e=document.createElement(t); if(c)e.className=c; if(txt!=null)e.textContent=txt; return e; }
+
+  function render(){
+    var g = document.getElementById("grid"); g.innerHTML = "";
+    g.className = "grid" + (editing ? " editing" : "");
+    apps.forEach(function(a, idx){
+      var t = el("div","tile"); t.setAttribute("role","button"); t.tabIndex = 0;
+      var ic = el("div","ic",a.i); ic.style.background = a.c;
+      t.appendChild(ic); t.appendChild(el("div","nm",a.n));
+      var d = el("button","del","✕"); d.title = "Remove";
+      d.onclick = function(ev){ ev.stopPropagation(); apps.splice(idx,1); save(); render(); };
+      t.appendChild(d);
+      t.onclick = function(){ editing ? null : choose(a); };
+      t.onkeydown = function(ev){ if(ev.key==="Enter") t.onclick(); };
+      g.appendChild(t);
+    });
+  }
+
+  function openApp(a){ window.open(a.u, "_blank", "noopener"); }
+
+  function choose(a){
+    if (!document.getElementById("ask").checked) { openApp(a); return; }
+    pending = a;
+    var ic = document.getElementById("cIcon"); ic.textContent = a.i; ic.style.background = a.c;
+    document.getElementById("cName").textContent = "Open " + a.n + "?";
+    document.getElementById("cUrl").textContent = a.u;
+    document.getElementById("confirm").classList.add("show");
+  }
+
+  document.getElementById("approve").onclick = function(){
+    if (pending) openApp(pending);
+    document.getElementById("confirm").classList.remove("show"); pending = null;
+  };
+  document.getElementById("cancel").onclick = function(){
+    document.getElementById("confirm").classList.remove("show"); pending = null;
+  };
+  document.getElementById("ask").onchange = function(e){ set("ask", e.target.checked ? "1" : "0"); };
+  document.getElementById("edit").onclick = function(){
+    editing = !editing; this.textContent = editing ? "Done" : "Edit"; render();
+  };
+  document.getElementById("add").onclick = function(){ document.getElementById("addBox").classList.add("show"); };
+  document.getElementById("aCancel").onclick = function(){ document.getElementById("addBox").classList.remove("show"); };
+  document.getElementById("aSave").onclick = function(){
+    var n = document.getElementById("aName").value.trim();
+    var u = document.getElementById("aUrl").value.trim();
+    if (!n || !u) return;
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    var colors = ["#6C5CE7","#00B894","#E17055","#0984E3","#D63031","#E84393"];
+    apps.push({n:n,u:u,c:colors[apps.length % colors.length],i:n.charAt(0).toUpperCase()});
+    save(); render();
+    document.getElementById("aName").value = ""; document.getElementById("aUrl").value = "";
+    document.getElementById("addBox").classList.remove("show");
+  };
+
+  load(); render();
+</script>
+</body>
+</html>
